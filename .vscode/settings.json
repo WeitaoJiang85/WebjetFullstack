@@ -1,12 +1,20 @@
 {
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSave": true,
+
+  "[csharp]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "ms-dotnettools.csdevkit"
+  },
+
   "[javascript]": {
     "editor.formatOnSave": true
   },
+
   "[typescript]": {
     "editor.formatOnSave": true
   },
+
   "[json]": {
     "editor.formatOnSave": true
   }

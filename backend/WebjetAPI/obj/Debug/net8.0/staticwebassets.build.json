@@ -1,11 +1,12 @@
 {
   "Version": 1,
-  "Hash": "w1gdBaZ5vJ0R8lYxf7+E8uUkyco915zvOsMkmv+ZDrk=",
+  "Hash": "4p0Kwy88lIL10HSXbrqHjBC3NcV5rNF+j97F5re/ogA=",
   "Source": "WebjetAPI",
   "BasePath": "_content/WebjetAPI",
   "Mode": "Default",
   "ManifestType": "Build",
   "ReferencedProjectsConfiguration": [],
   "DiscoveryPatterns": [],
-  "Assets": []
+  "Assets": [],
+  "Endpoints": []
 }
