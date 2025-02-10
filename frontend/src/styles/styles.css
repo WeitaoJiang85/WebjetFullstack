@@ -1,0 +1,79 @@
+/* 🌑 Dark Theme with Gold Accents */
+body {
+  font-family: "Arial", sans-serif;
+  background-color: black;
+  color: white;
+  margin: 0;
+  padding: 0;
+}
+
+/* 🟨 Header Styling */
+header {
+  background: linear-gradient(to right, #1a1a1a, #333);
+  padding: 15px;
+  font-size: 24px;
+  font-weight: bold;
+  text-align: center;
+  color: gold;
+}
+
+/* 🎬 Movie List Styling */
+.movie-list {
+  width: 33%;
+  height: 100vh;
+  overflow-y: auto;
+  background-color: #121212;
+  padding: 10px;
+}
+
+/* 🎥 Movie Card Hover Effect */
+.movie-card {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  background-color: #222;
+  border-radius: 8px;
+  transition:
+    transform 0.3s ease-in-out,
+    box-shadow 0.3s;
+}
+
+.movie-card:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 10px rgba(255, 215, 0, 0.3);
+}
+
+/* 🏆 Selected Movie Effect */
+.selected-movie {
+  border: 2px solid gold;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+/* 🎞️ Movie Detail Section */
+.movie-detail {
+  width: 67%;
+  height: 100vh;
+  background: #181818;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+/* 🏅 Best Price Highlight */
+.best-price {
+  font-weight: bold;
+  color: gold;
+}
+
+/* 🎭 Floating Effect on Hover */
+.floating {
+  animation: floatUp 0.3s ease-in-out;
+}
+
+@keyframes floatUp {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-5px);
+  }
+}
