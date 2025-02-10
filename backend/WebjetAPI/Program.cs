@@ -63,7 +63,25 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Enable CORS for Vercel frontend and local development
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowVercelAndLocalhost", policy =>
+    {
+        policy.WithOrigins(
+            "https://webjet-fullstack-frontend.vercel.app", // Vercel frontend
+            "http://localhost:5173" // Local development
+        )
+        .WithMethods("GET") // ✅ Only Allow GET Requests
+        .AllowAnyHeader()
+        .AllowCredentials();
+    });
+});
+
 var app = builder.Build();
+
+// Enable CORS
+app.UseCors("AllowVercelAndLocalhost");
 
 // Enable Swagger for API documentation
 app.UseSwagger();
