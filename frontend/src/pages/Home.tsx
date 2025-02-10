@@ -1,16 +1,18 @@
-import React from "react";
-import { MovieProvider } from "../context/MovieContext"; //
+import React, { useContext } from "react";
+import { MovieContext } from "../context/MovieContext";
 import MovieList from "../components/MovieList";
 import MovieDetail from "../components/MovieDetail";
 
 const Home: React.FC = () => {
+  const context = useContext(MovieContext);
+  if (!context) return null;
+  const { selectedMovie } = context;
+
   return (
-    <MovieProvider>
-      <div className="flex h-screen">
-        <MovieList />
-        <MovieDetail />
-      </div>
-    </MovieProvider>
+    <div className="flex h-screen">
+      <MovieList />
+      <MovieDetail movie={selectedMovie} />
+    </div>
   );
 };
 

@@ -25,6 +25,7 @@ export const MovieProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     const fetchMovies = async () => {
       try {
+        console.log("Fetching movies...");
         const response = await fetch(
           "https://webjetfullstack-backend.onrender.com/api/mergedmoviedetails"
         );

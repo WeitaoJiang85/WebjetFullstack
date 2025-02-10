@@ -1,12 +1,12 @@
 import React, { useState } from "react";
-import { MenuItem, Select, FormControl, InputLabel } from "@mui/material";
+import { MenuItem, Select, FormControl } from "@mui/material";
 
 interface SortFilterProps {
   onSortChange: (sortType: string, sortOrder: "asc" | "desc") => void;
 }
 
 const SortFilter: React.FC<SortFilterProps> = ({ onSortChange }) => {
-  const [sortOption, setSortOption] = useState("rating-desc"); // 默认按评分降序
+  const [sortOption, setSortOption] = useState("rating-desc");
 
   const handleSortChange = (event: any) => {
     const selectedOption = event.target.value;
@@ -19,13 +19,35 @@ const SortFilter: React.FC<SortFilterProps> = ({ onSortChange }) => {
   return (
     <FormControl
       fullWidth
-      className="bg-gray-900 text-white rounded-lg shadow-md"
+      sx={{
+        "& .MuiOutlinedInput-root": {
+          color: "#FFD700",
+          backgroundColor: "#222",
+          "& fieldset": { borderColor: "#FFD700" },
+          "&:hover fieldset": { borderColor: "#FFC107" },
+          "&.Mui-focused fieldset": { borderColor: "#FFD700" },
+        },
+        "& .MuiSelect-select": {
+          padding: "10px",
+        },
+      }}
     >
-      <InputLabel className="text-white">Sort by</InputLabel>
       <Select
         value={sortOption}
         onChange={handleSortChange}
-        className="bg-gray-800 text-white"
+        displayEmpty
+        sx={{
+          color: "#FFD700",
+          "&:focus": { backgroundColor: "#111" },
+        }}
+        MenuProps={{
+          PaperProps: {
+            style: {
+              backgroundColor: "#222",
+              color: "#FFD700",
+            },
+          },
+        }}
       >
         <MenuItem value="year-desc">Year (New → Old)</MenuItem>
         <MenuItem value="year-asc">Year (Old → New)</MenuItem>

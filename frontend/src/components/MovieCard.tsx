@@ -1,6 +1,7 @@
-import React from "react";
-import { Movie } from "../types"; // Ensure you have a Movie type defined
+import React, { useState } from "react";
 import { FaHeart, FaRegHeart } from "react-icons/fa";
+import { Movie } from "../types";
+import placeholderPoster from "../assets/vertical.jpg";
 
 interface MovieCardProps {
   movie: Movie;
@@ -17,32 +18,38 @@ const MovieCard: React.FC<MovieCardProps> = ({
   isFavorite,
   toggleFavorite,
 }) => {
+  const [posterError, setPosterError] = useState(false);
+
   return (
     <div
       onClick={onClick}
-      className={`relative flex items-center p-4 rounded-lg transition-transform duration-300 cursor-pointer border border-gray-700 ${
-        isSelected ? "transform scale-105 shadow-lg border-yellow-500" : ""
-      } hover:scale-105`}
+      className={`relative flex items-center p-2 rounded-lg cursor-pointer transition transform ${
+        isSelected
+          ? "bg-yellow-500 text-black scale-105"
+          : "bg-gray-800 text-white text-sm hover:scale-105"
+      }`}
     >
       <img
-        src={movie.poster}
+        src={posterError ? placeholderPoster : movie.poster}
         alt={movie.title}
         className="w-16 h-24 object-cover rounded-lg"
+        onError={() => setPosterError(true)}
       />
-      <div className="ml-4 flex-1">
+      <div className="ml-4 flex-grow">
         <h3 className="text-lg font-bold">{movie.title}</h3>
-        <p className="text-sm text-gray-400">Year: {movie.year}</p>
+        <p className="text-white font-bold">Year: {movie.year}</p>
       </div>
-
-      {/* Favorite Toggle Button */}
       <button
         onClick={(e) => {
-          e.stopPropagation(); // Prevent triggering the card onClick
+          e.stopPropagation();
           toggleFavorite();
         }}
-        className="absolute bottom-2 right-2 text-yellow-400"
       >
-        {isFavorite ? <FaHeart className="text-red-500" /> : <FaRegHeart />}
+        {isFavorite ? (
+          <FaHeart className="text-red-500" />
+        ) : (
+          <FaRegHeart className="text-gray-500" />
+        )}
       </button>
     </div>
   );

@@ -15,13 +15,13 @@ export interface Movie {
   awards: string;
   poster: string;
   metascore: string;
-  rating: number;
-  votes: number;
+  Rating: number;
+  Votes: number;
   firstID: string;
   secondID?: string;
   type: string;
-  firstPrice: number;
+  FirstPrice: number;
   firstProvider: string;
-  secondPrice?: number;
+  SecondPrice?: number;
   secondProvider?: string;
 }

@@ -21,8 +21,8 @@ const MovieList = () => {
 
   useEffect(() => {
     setSortedMovies(movies);
+    handleSortChange("rating", "desc");
   }, [movies]);
-
   useEffect(() => {
     setSortedFaves(faves);
   }, [faves]);

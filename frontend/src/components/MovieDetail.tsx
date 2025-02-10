@@ -1,90 +1,117 @@
-import React, { useContext } from "react";
-import { Typography, Card, CardMedia, CardContent, Box } from "@mui/material";
+import React, { useState } from "react";
 import { GiPriceTag } from "react-icons/gi";
-import { MovieContext } from "../context/MovieContext";
+import { Movie } from "../types";
+import placeholderBackground from "../assets/landscape.jpg";
 
-const MovieDetail: React.FC = () => {
-  const context = useContext(MovieContext);
-  if (!context) return null;
+interface MovieDetailProps {
+  movie: Movie | null;
+}
 
-  const { selectedMovie } = context;
-
-  if (!selectedMovie) {
+const MovieDetail: React.FC<MovieDetailProps> = ({ movie }) => {
+  if (!movie) {
     return (
-      <Box className="flex justify-center items-center h-full text-gray-400">
-        <Typography variant="h5">Select a movie to see details</Typography>
-      </Box>
+      <div className="text-gray-400 text-lg p-4">
+        Select a movie to see details
+      </div>
     );
   }
 
+  const [posterError, setPosterError] = useState(false);
+
   return (
-    <Card className="bg-gray-900 text-white w-full h-full p-4 shadow-lg">
-      {/* Movie Poster */}
-      <CardMedia
-        component="img"
-        height="300"
-        image={selectedMovie.poster}
-        alt={selectedMovie.title}
-        className="rounded-lg"
+    <div className="relative w-2/3 h-screen bg-black text-white">
+      {/* Hidden Image for Error Handling */}
+      <img
+        src={movie.poster}
+        alt={movie.title}
+        className="hidden"
+        onError={() => setPosterError(true)}
+        onLoad={() => setPosterError(false)}
       />
 
-      <CardContent>
-        <Typography variant="h4" className="font-bold text-yellow-400 mb-2">
-          {selectedMovie.title}
-        </Typography>
+      {/* Background Poster */}
+      <div
+        className="absolute inset-0 bg-cover bg-center opacity-50"
+        style={{
+          backgroundImage: `url(${posterError ? placeholderBackground : movie.poster})`,
+        }}
+      />
 
-        <Typography variant="body1" className="text-gray-300">
-          <strong>Year:</strong> {selectedMovie.year}
-        </Typography>
-        <Typography variant="body1" className="text-gray-300">
-          <strong>Rated:</strong> {selectedMovie.rated}
-        </Typography>
-        <Typography variant="body1" className="text-gray-300">
-          <strong>Released:</strong> {selectedMovie.released}
-        </Typography>
-        <Typography variant="body1" className="text-gray-300">
-          <strong>Runtime:</strong> {selectedMovie.runtime}
-        </Typography>
-        <Typography variant="body1" className="text-gray-300">
-          <strong>Genre:</strong> {selectedMovie.genre}
-        </Typography>
-        <Typography variant="body1" className="text-gray-300">
-          <strong>Director:</strong> {selectedMovie.director}
-        </Typography>
-        <Typography variant="body1" className="text-gray-300">
-          <strong>Writer:</strong> {selectedMovie.writer}
-        </Typography>
-        <Typography variant="body1" className="text-gray-300">
-          <strong>Actors:</strong> {selectedMovie.actors}
-        </Typography>
-        <Typography variant="body1" className="text-gray-300">
-          <strong>Plot:</strong> {selectedMovie.plot}
-        </Typography>
+      {/* Movie Details */}
+      <div className="relative p-6 bg-black bg-opacity-70 rounded-lg m-6">
+        <h1 className="text-3xl font-bold text-yellow-400">{movie.title}</h1>
+        <p>
+          <strong>Year:</strong> {movie.year}
+        </p>
+        <p>
+          <strong>Rated:</strong> {movie.rated}
+        </p>
+        <p>
+          <strong>Released:</strong> {movie.released}
+        </p>
+        <p>
+          <strong>Runtime:</strong> {movie.runtime}
+        </p>
+        <p>
+          <strong>Genre:</strong> {movie.genre}
+        </p>
+        <p>
+          <strong>Director:</strong> {movie.director}
+        </p>
+        <p>
+          <strong>Writer:</strong> {movie.writer}
+        </p>
+        <p>
+          <strong>Actors:</strong> {movie.actors}
+        </p>
+        <p>
+          <strong>Plot:</strong> {movie.plot}
+        </p>
+        <p>
+          <strong>Language:</strong> {movie.language}
+        </p>
+        <p>
+          <strong>Country:</strong> {movie.country}
+        </p>
+        <p>
+          <strong>Awards:</strong> {movie.awards}
+        </p>
+        <p>
+          <strong>Metascore:</strong> {movie.metascore}
+        </p>
+        <p>
+          <strong>Rating:</strong> {movie.Rating}
+        </p>
+        <p>
+          <strong>Votes:</strong> {movie.Votes}
+        </p>
 
-        {/* Pricing */}
-        <Box className="mt-4">
-          <Typography
-            variant="h5"
-            className="flex items-center text-yellow-400 font-bold"
-          >
-            <GiPriceTag className="mr-2" /> Best Price: $
-            {selectedMovie.firstPrice} ({selectedMovie.firstProvider})
-          </Typography>
+        {/* Best Price */}
+        {movie.FirstPrice !== undefined && (
+          <p className="text-yellow-400 flex items-center mt-4">
+            <GiPriceTag className="mr-2" />
+            Best Price: ${movie.FirstPrice.toFixed(2)} (
+            {movie.firstProvider.charAt(0).toUpperCase() +
+              movie.firstProvider.slice(1)}
+            )
+          </p>
+        )}
 
-          <Typography
-            variant="h6"
-            className={`flex items-center text-gray-300 transition-opacity duration-500 ${
-              selectedMovie.secondProvider === "Unknown"
-                ? "opacity-0"
-                : "opacity-100"
-            }`}
-          >
-            <GiPriceTag className="mr-2" /> Other Price: $
-            {selectedMovie.secondPrice} ({selectedMovie.secondProvider})
-          </Typography>
-        </Box>
-      </CardContent>
-    </Card>
+        {/* Other Price */}
+        {movie.SecondPrice !== undefined &&
+          movie.SecondPrice > 0 &&
+          movie.secondProvider !== "unknown" &&
+          movie.secondProvider !== "" && (
+            <p className="text-gray-300 flex items-center">
+              <GiPriceTag className="mr-2" />
+              Other Price: ${movie.SecondPrice.toFixed(2)} (
+              {(movie.secondProvider ?? "").charAt(0).toUpperCase() +
+                (movie.secondProvider ?? "").slice(1)}
+              )
+            </p>
+          )}
+      </div>
+    </div>
   );
 };
 
