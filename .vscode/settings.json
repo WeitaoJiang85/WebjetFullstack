@@ -4,7 +4,7 @@
 
   "[csharp]": {
     "editor.formatOnSave": true,
-    "editor.defaultFormatter": "ms-dotnettools.csdevkit"
+    "editor.defaultFormatter": "bilal-arikan.csharp-auto-formatter"
   },
 
   "[javascript]": {

@@ -11,88 +11,46 @@ using WebjetAPI.Services;
 
 namespace WebjetAPI.Controllers
 {
-    [ApiController]
-    [Route("api")]
-    public class MoviesController : ControllerBase
+[ApiController]
+[Route("api")]
+public class MoviesController : ControllerBase
+{
+    private readonly ILogger<MoviesController> _logger;
+    private readonly IDatabase? _cache;
+
+    public MoviesController(ILogger<MoviesController> logger, IConnectionMultiplexer redis)
     {
-        private readonly ILogger<MoviesController> _logger;
-        private readonly IDatabase? _cache;
+        _logger = logger;
+        _cache = redis.GetDatabase();
+    }
 
-        public MoviesController(ILogger<MoviesController> logger, IConnectionMultiplexer redis)
-        {
-            _logger = logger;
-            _cache = redis.GetDatabase();
-        }
-
-        /// <summary>
-        /// Gets a consolidated list of all movies from both Cinemaworld and Filmworld, removing duplicates.
-        /// </summary>
-        [HttpGet("allmovies")]
-        public async Task<IActionResult> GetAllMovies()
-        {
-            try
-            {
-                // Fetch cached movie lists from Redis
-                var cinemaMovies = await GetMoviesFromCache("cinemaworld_movies");
-                var filmMovies = await GetMoviesFromCache("filmworld_movies");
-
-                // Dictionary to store unique movies by title
-                var uniqueMovies = new Dictionary<string, Movie>();
-
-                // Add Cinemaworld movies first (higher priority)
-                foreach (var movie in cinemaMovies)
-                {
-                    if (!string.IsNullOrEmpty(movie.Title))
-                    {
-                        uniqueMovies[movie.Title] = movie;
-                    }
-                }
-
-                // Add Filmworld movies, only if not already present
-                foreach (var movie in filmMovies)
-                {
-                    if (!string.IsNullOrEmpty(movie.Title) && !uniqueMovies.ContainsKey(movie.Title))
-                    {
-                        uniqueMovies[movie.Title] = movie;
-                    }
-                }
-
-                return Ok(uniqueMovies.Values.ToList());
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error fetching all movies from cache");
-                return StatusCode(500, "Internal server error");
-            }
-        }
-
-        /// <summary>
-        /// Fetches a list of movies from Redis based on the given cache key.
-        /// </summary>
-        private async Task<List<Movie>> GetMoviesFromCache(string cacheKey)
+    [HttpGet("allmovies")]
+    public async Task<IActionResult> GetAllMovies()
+    {
+        try
         {
             if (_cache == null)
             {
                 _logger.LogWarning("Redis cache is unavailable.");
-                return new List<Movie>();
+                return StatusCode(500, "Redis is unavailable.");
             }
 
-            var cachedData = await _cache.StringGetAsync(cacheKey);
+            var cachedData = await _cache.StringGetAsync("merged_movies");
             if (cachedData.IsNullOrEmpty)
             {
-                _logger.LogWarning($"No data found in Redis for key: {cacheKey}");
-                return new List<Movie>();
+                _logger.LogWarning("No merged movie data found in cache.");
+                return NotFound("No merged movie data available.");
             }
 
-            try
-            {
-                return JsonSerializer.Deserialize<List<Movie>>(cachedData.ToString()) ?? new List<Movie>();
-            }
-            catch (JsonException ex)
-            {
-                _logger.LogError(ex, $"Failed to deserialize movie data for key: {cacheKey}");
-                return new List<Movie>();
-            }
+            var mergedMovies = !cachedData.IsNullOrEmpty ? JsonSerializer.Deserialize<List<MergedMovie>>(cachedData.ToString()) : new List<MergedMovie>();
+            return Ok(mergedMovies ?? new List<MergedMovie>());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching all movies from cache");
+            return StatusCode(500, "Internal server error");
         }
     }
+}
+
 }

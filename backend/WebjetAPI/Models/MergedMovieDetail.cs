@@ -29,8 +29,9 @@ public class MergedMovieDetail
 
     [JsonPropertyName("Votes")]
     public int Votes { get; set; } = 0;
-
-    public string ID { get; set; } = "N/A";
+    public string RawID { get; set; } = "N/A";
+    public string FirstID { get; set; } = "N/A";
+    public string SecondID { get; set; } = "N/A";
     public string Type { get; set; } = "Unknown";
 
     [JsonPropertyName("FirstPrice")]

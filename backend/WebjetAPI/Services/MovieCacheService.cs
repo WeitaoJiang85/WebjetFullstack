@@ -22,8 +22,8 @@ public class MovieCacheService : BackgroundService
     private readonly IConfiguration _configuration;
     private readonly IDatabase? _cache;
     private readonly MovieDetailCacheService _movieDetailCacheService;
-    private readonly string _cinemaWorldBaseUrl;
-    private readonly string _filmWorldBaseUrl;
+    private readonly string _cinemaworldBaseUrl;
+    private readonly string _filmworldBaseUrl;
     private readonly string _apiToken;
 
     public MovieCacheService(
@@ -39,8 +39,8 @@ public class MovieCacheService : BackgroundService
         _cache = redis?.GetDatabase();
         _movieDetailCacheService = movieDetailCacheService;
 
-        _cinemaWorldBaseUrl = _configuration["WebjetAPI:BaseUrls:Cinemaworld"] ?? throw new ArgumentNullException("Cinemaworld API URL is missing");
-        _filmWorldBaseUrl = _configuration["WebjetAPI:BaseUrls:Filmworld"] ?? throw new ArgumentNullException("Filmworld API URL is missing");
+        _cinemaworldBaseUrl = _configuration["WebjetAPI:BaseUrls:cinemaworld"] ?? throw new ArgumentNullException("cinemaworld API URL is missing");
+        _filmworldBaseUrl = _configuration["WebjetAPI:BaseUrls:filmworld"] ?? throw new ArgumentNullException("filmworld API URL is missing");
         _apiToken = _configuration["WebjetAPI:ApiToken"] ?? throw new ArgumentNullException("API Token is missing");
     }
 
@@ -57,19 +57,25 @@ public class MovieCacheService : BackgroundService
 
                 if (_cache != null)
                 {
-                    if (movies.TryGetValue("Cinemaworld", out var cinemaMovies))
+                    if (movies.TryGetValue("cinemaworld", out var cinemaMovies))
                     {
                         var cinemaCacheData = JsonSerializer.Serialize(cinemaMovies);
                         await _cache.StringSetAsync("cinemaworld_movies", cinemaCacheData, TimeSpan.FromDays(1));
-                        _logger.LogInformation("Updated Cinemaworld movie data in cache");
+                        _logger.LogInformation("Updated cinemaworld movie data in cache");
                     }
 
-                    if (movies.TryGetValue("Filmworld", out var filmMovies))
+                    if (movies.TryGetValue("filmworld", out var filmMovies))
                     {
                         var filmCacheData = JsonSerializer.Serialize(filmMovies);
                         await _cache.StringSetAsync("filmworld_movies", filmCacheData, TimeSpan.FromDays(1));
-                        _logger.LogInformation("Updated Filmworld movie data in cache");
+                        _logger.LogInformation("Updated filmworld movie data in cache");
                     }
+
+                    // Generate merged movie list and store in Redis
+                    var mergedMovies = GenerateMergedMovies(movies);
+                    var mergedMoviesCacheData = JsonSerializer.Serialize(mergedMovies);
+                    await _cache.StringSetAsync("merged_movies", mergedMoviesCacheData, TimeSpan.FromDays(1));
+                    _logger.LogInformation("Updated merged movie data in cache");
                 }
                 else
                 {
@@ -95,14 +101,14 @@ public class MovieCacheService : BackgroundService
     {
         var allMovies = new Dictionary<string, List<Movie>>
         {
-            { "Cinemaworld", new List<Movie>() },
-            { "Filmworld", new List<Movie>() }
+            { "cinemaworld", new List<Movie>() },
+            { "filmworld", new List<Movie>() }
         };
 
         var providers = new Dictionary<string, string>
         {
-            { "Cinemaworld", _cinemaWorldBaseUrl },
-            { "Filmworld", _filmWorldBaseUrl }
+            { "cinemaworld", _cinemaworldBaseUrl },
+            { "filmworld", _filmworldBaseUrl }
         };
 
         foreach (var provider in providers.Keys)
@@ -123,7 +129,7 @@ public class MovieCacheService : BackgroundService
                     var movies = JsonSerializer.Deserialize<MovieResponse>(await response.Content.ReadAsStringAsync())?.Movies ?? new List<Movie>();
                     allMovies[provider] = movies;
                     success = true;
-                    break; // Exit retry loop if successful
+                    break;
                 }
                 catch (Exception ex)
                 {
@@ -138,16 +144,12 @@ public class MovieCacheService : BackgroundService
             // If all attempts failed, preserve the existing Redis cache
             if (!success && _cache != null)
             {
-                var providerKey = provider.ToLowerInvariant(); 
+                var providerKey = provider;
                 var cachedData = await _cache.StringGetAsync($"{providerKey}_movies");
 
                 if (!cachedData.IsNullOrEmpty)
                 {
-                    var cachedString = cachedData.ToString();
-                    allMovies[provider] = !string.IsNullOrEmpty(cachedString)
-                        ? JsonSerializer.Deserialize<List<Movie>>(cachedString) ?? new List<Movie>()
-                        : new List<Movie>();
-
+                    allMovies[provider] = JsonSerializer.Deserialize<List<Movie>>(cachedData.ToString()) ?? new List<Movie>();
                     _logger.LogWarning($"Using existing cache for {provider} as all retries failed.");
                 }
                 else
@@ -158,5 +160,64 @@ public class MovieCacheService : BackgroundService
         }
 
         return allMovies;
+    }
+
+    /// <summary>
+    /// Merges movies from cinemaworld and filmworld, ensuring unique movies by title.
+    /// </summary>
+    private List<MergedMovie> GenerateMergedMovies(Dictionary<string, List<Movie>> movies)
+    {
+        var mergedMovies = new Dictionary<string, MergedMovie>();
+
+        // Iterate through cinemaworld movies and add them to the dictionary first
+        foreach (var movie in movies["cinemaworld"])
+        {
+            // Ensure the movie has a valid title before processing
+            if (!string.IsNullOrWhiteSpace(movie.Title))
+            {
+                mergedMovies[movie.Title] = new MergedMovie
+                {
+                    Title = movie.Title,
+                    Year = movie.Year ?? "Unknown",
+                    Type = movie.Type ?? "Unknown",
+                    Poster = movie.Poster,
+                    IDs = !string.IsNullOrEmpty(movie.ID) ? new List<string> { movie.ID } : new List<string>(),
+                    RawID = movie.ID ?? string.Empty // Use the first available ID initially
+                };
+            }
+        }
+
+        // Iterate through filmworld movies and merge them with existing ones
+        foreach (var movie in movies["filmworld"])
+        {
+            // Ensure the movie has a valid title before processing
+            if (!string.IsNullOrWhiteSpace(movie.Title))
+            {
+                // If the movie exists in the dictionary (from cinemaworld), update it
+                if (mergedMovies.TryGetValue(movie.Title, out var existingMovie))
+                {
+                    if (!string.IsNullOrEmpty(movie.ID))
+                    {
+                        existingMovie.IDs.Add(movie.ID); // Add the filmworld ID to the list
+                    }
+                    existingMovie.RawID = string.Join("-", existingMovie.IDs); // Combine IDs for RawID
+                }
+                else
+                {
+                    // If the movie does not exist, add it as a new entry
+                    mergedMovies[movie.Title] = new MergedMovie
+                    {
+                        Title = movie.Title,
+                        Year = movie.Year ?? "Unknown",
+                        Type = movie.Type ?? "Unknown",
+                        Poster = movie.Poster,
+                        IDs = !string.IsNullOrEmpty(movie.ID) ? new List<string> { movie.ID } : new List<string>(),
+                        RawID = movie.ID ?? string.Empty // Use the first available ID initially
+                    };
+                }
+            }
+        }
+
+        return mergedMovies.Values.ToList();
     }
 }
