@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from "react";
+import { useContext, useState, useEffect } from "react";
 import { MovieContext } from "../context/MovieContext";
 import MovieCard from "./MovieCard";
 import SortFilter from "./SortFilter";
