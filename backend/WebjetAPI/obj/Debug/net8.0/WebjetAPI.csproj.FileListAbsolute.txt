@@ -1,6 +1,5 @@
 D:\GA\WebjetFullstack\backend\WebjetAPI\bin\Debug\net8.0\testhost.dll
 D:\GA\WebjetFullstack\backend\WebjetAPI\bin\Debug\net8.0\testhost.exe
-D:\GA\WebjetFullstack\backend\WebjetAPI\bin\Debug\net8.0\appsettings.Development.json
 D:\GA\WebjetFullstack\backend\WebjetAPI\bin\Debug\net8.0\appsettings.json
 D:\GA\WebjetFullstack\backend\WebjetAPI\bin\Debug\net8.0\WebjetAPI.staticwebassets.endpoints.json
 D:\GA\WebjetFullstack\backend\WebjetAPI\bin\Debug\net8.0\xunit.runner.visualstudio.dotnetcore.testadapter.dll
@@ -12,6 +11,7 @@ D:\GA\WebjetFullstack\backend\WebjetAPI\bin\Debug\net8.0\WebjetAPI.runtimeconfig
 D:\GA\WebjetFullstack\backend\WebjetAPI\bin\Debug\net8.0\WebjetAPI.dll
 D:\GA\WebjetFullstack\backend\WebjetAPI\bin\Debug\net8.0\WebjetAPI.pdb
 D:\GA\WebjetFullstack\backend\WebjetAPI\bin\Debug\net8.0\Castle.Core.dll
+D:\GA\WebjetFullstack\backend\WebjetAPI\bin\Debug\net8.0\DotNetEnv.dll
 D:\GA\WebjetFullstack\backend\WebjetAPI\bin\Debug\net8.0\Microsoft.VisualStudio.CodeCoverage.Shim.dll
 D:\GA\WebjetFullstack\backend\WebjetAPI\bin\Debug\net8.0\Microsoft.Extensions.Configuration.dll
 D:\GA\WebjetFullstack\backend\WebjetAPI\bin\Debug\net8.0\Microsoft.Extensions.Configuration.Abstractions.dll
@@ -50,6 +50,7 @@ D:\GA\WebjetFullstack\backend\WebjetAPI\bin\Debug\net8.0\Serilog.Settings.Config
 D:\GA\WebjetFullstack\backend\WebjetAPI\bin\Debug\net8.0\Serilog.Sinks.Console.dll
 D:\GA\WebjetFullstack\backend\WebjetAPI\bin\Debug\net8.0\Serilog.Sinks.Debug.dll
 D:\GA\WebjetFullstack\backend\WebjetAPI\bin\Debug\net8.0\Serilog.Sinks.File.dll
+D:\GA\WebjetFullstack\backend\WebjetAPI\bin\Debug\net8.0\Sprache.dll
 D:\GA\WebjetFullstack\backend\WebjetAPI\bin\Debug\net8.0\StackExchange.Redis.dll
 D:\GA\WebjetFullstack\backend\WebjetAPI\bin\Debug\net8.0\Swashbuckle.AspNetCore.Swagger.dll
 D:\GA\WebjetFullstack\backend\WebjetAPI\bin\Debug\net8.0\Swashbuckle.AspNetCore.SwaggerGen.dll

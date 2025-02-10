@@ -7,54 +7,41 @@ using Microsoft.Extensions.Logging;
 using Serilog;
 using StackExchange.Redis;
 using WebjetAPI.Services;
+using DotNetEnv; // Import DotNetEnv to load .env file
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Load configuration from appsettings.json (Render Secret File)
-var config = new ConfigurationBuilder()
-    .SetBasePath(Directory.GetCurrentDirectory())
-    .AddJsonFile("/etc/secrets/appsettings.json", optional: true, reloadOnChange: true) // Load from Render Secret Files
-    .AddEnvironmentVariables() // Also allow environment variables (fallback)
-    .Build();
-
-builder.Configuration.AddConfiguration(config);
+// Load .env file for environment variables
+if (File.Exists("/etc/secrets/.env"))
+{
+    Env.Load("/etc/secrets/.env"); // Load from Render's Secret Files
+}
+else
+{
+    Env.Load(); // Load from local .env file
+}
 
 // Configure Serilog for logging
 Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(config)
     .WriteTo.Console()
     .WriteTo.File("logs/webjetapi-.log", rollingInterval: RollingInterval.Day)
     .CreateLogger();
 
 builder.Host.UseSerilog();
 
-// Add HttpClientFactory for handling external API requests with increased timeout
+// Add HttpClientFactory with increased timeout for API requests
 builder.Services.AddHttpClient("WebjetAPIClient", client =>
 {
-    client.Timeout = TimeSpan.FromMinutes(5); // Increase timeout to 5 minutes
+    client.Timeout = TimeSpan.FromMinutes(5);
 });
 
-// Load API Token from environment variable
-var apiToken = Environment.GetEnvironmentVariable("WEBJET_API_TOKEN") 
-               ?? throw new Exception("API Token is missing from environment variables");
+// Load API Token from .env file
+var apiToken = Env.GetString("WEBJET_API_TOKEN") 
+               ?? throw new Exception("API Token is missing from .env file");
 
-// Load Redis configuration
-var redisHost = config["Redis:Host"];
-var redisPort = config["Redis:Port"];
-var redisPassword = Environment.GetEnvironmentVariable("REDIS_PASSWORD"); // Load from environment variables
-
-if (string.IsNullOrEmpty(redisHost) || string.IsNullOrEmpty(redisPort))
-{
-    throw new Exception("Redis host or port is missing in configuration.");
-}
-
-if (string.IsNullOrEmpty(redisPassword))
-{
-    throw new Exception("Redis password is missing in environment variables.");
-}
-
-// 拼接 Redis 连接字符串
-var redisConnection = $"{redisHost}:{redisPort},password={redisPassword},ssl=false,abortConnect=false";
+// Load Redis connection string from .env file
+var redisConnection = Env.GetString("REDIS_CONNECTION_STRING") 
+                      ?? throw new Exception("Redis connection string is missing from .env file");
 
 try
 {
@@ -64,7 +51,7 @@ try
 catch (Exception ex)
 {
     Log.Error("Failed to connect to Redis: {ErrorMessage}", ex.Message);
-    throw;
+    builder.Services.AddSingleton<IConnectionMultiplexer>(_ => null); // Prevents API crash if Redis fails
 }
 
 // Register services
@@ -78,25 +65,36 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Enable Swagger for both Development and Production
+// Enable Swagger for API documentation
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Webjet API V1");
 });
 
-// Middleware for authorization
+// Enable authorization middleware
 app.UseAuthorization();
 app.MapControllers();
 
 // Add health check endpoint
 app.MapGet("/healthz", () => Results.Ok("Healthy"));
 
-// Get PORT from environment variable (default: 8080 for Render)
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-app.Urls.Add($"http://*:{port}");
+// Get PORT from environment variable (default: 5149 for local testing)
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5149";
 
-// Log application start message
+// Ensure correct binding for Render and local development
+if (Environment.GetEnvironmentVariable("RENDER") == "true")
+{
+    // Render deployment: Bind to all network interfaces (necessary for Render)
+    app.Urls.Add($"http://0.0.0.0:{port}");
+}
+else
+{
+    // Local development: Bind only to localhost
+    app.Urls.Add($"http://localhost:{port}");
+}
+
+// Log application startup messages
 Log.Information("Webjet API has started successfully.");
 Log.Information("Running on port: {Port}", port);
 Log.Information("Swagger UI available at: http://localhost:{Port}/swagger", port);

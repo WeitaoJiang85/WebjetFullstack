@@ -8,12 +8,12 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copy the project file and restore dependencies
-COPY ["WebjetAPI.csproj", "./"]
+COPY ["WebjetAPI/WebjetAPI.csproj", "./"]
+WORKDIR "/src/WebjetAPI"
 RUN dotnet restore "WebjetAPI.csproj"
 
 # Copy the entire project and build the application
 COPY . .
-WORKDIR "/src"
 RUN dotnet build "WebjetAPI.csproj" -c Release -o /app/build
 
 # Publish the application
@@ -25,6 +25,11 @@ FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 
+# Copy .env file if exists (Render will have it in /etc/secrets/.env)
+COPY .env /app/.env
+
 # Set environment variable for Render
 ENV ASPNETCORE_URLS=http://+:8080
+
+# Run the application
 CMD ["dotnet", "WebjetAPI.dll"]
