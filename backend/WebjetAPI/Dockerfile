@@ -1,10 +1,10 @@
-# Use official .NET runtime as base image
-FROM mcr.microsoft.com/dotnet/aspnet:7.0 AS base
+# Use official .NET 8.0 runtime as base image
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
 WORKDIR /app
 EXPOSE 8080
 
-# Use .NET SDK image to build the application
-FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
+# Use .NET 8.0 SDK image to build the application
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copy the project file and restore dependencies
