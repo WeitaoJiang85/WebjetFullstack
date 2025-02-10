@@ -7,235 +7,92 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using WebjetAPI.Models;
+using WebjetAPI.Services;
 
-namespace WebjetAPI.Controllers;
-
-/// <summary>
-/// API controller for retrieving movie data.
-/// </summary>
-[Route("api/movies")]
-[ApiController]
-public class MoviesController : ControllerBase
+namespace WebjetAPI.Controllers
 {
-    private readonly ILogger<MoviesController> _logger;
-    private readonly IDatabase _cache;
-
-    public MoviesController(ILogger<MoviesController> logger, IConnectionMultiplexer redis)
+    [ApiController]
+    [Route("api")]
+    public class MoviesController : ControllerBase
     {
-        _logger = logger;
-        _cache = redis.GetDatabase();
-    }
+        private readonly ILogger<MoviesController> _logger;
+        private readonly IDatabase? _cache;
 
-    /// <summary>
-    /// Get the top 3 latest movies, merging data from both providers.
-    /// </summary>
-    [HttpGet("top3")]
-    public async Task<IActionResult> GetLatestMovies()
-    {
-        try
+        public MoviesController(ILogger<MoviesController> logger, IConnectionMultiplexer redis)
         {
-            var allMovies = new List<MovieDetail>();
+            _logger = logger;
+            _cache = redis.GetDatabase();
+        }
 
-            // Fetch Cinemaworld movie details
-            var cinemaKeys = _cache.Multiplexer.GetServer(_cache.Multiplexer.GetEndPoints()[0])
-                              .Keys(pattern: "cinemaworld_movie_details:*")
-                              .ToList();
-            foreach (var key in cinemaKeys)
+        /// <summary>
+        /// Gets a consolidated list of all movies from both Cinemaworld and Filmworld, removing duplicates.
+        /// </summary>
+        [HttpGet("allmovies")]
+        public async Task<IActionResult> GetAllMovies()
+        {
+            try
             {
-                var data = await _cache.StringGetAsync(key);
-                if (!string.IsNullOrEmpty(data))
-                {
-                    var movie = JsonSerializer.Deserialize<MovieDetail>(data);
-                    if (movie != null) allMovies.Add(movie);
-                }
-            }
+                // Fetch cached movie lists from Redis
+                var cinemaMovies = await GetMoviesFromCache("cinemaworld_movies");
+                var filmMovies = await GetMoviesFromCache("filmworld_movies");
 
-            // Fetch Filmworld movie details
-            var filmKeys = _cache.Multiplexer.GetServer(_cache.Multiplexer.GetEndPoints()[0])
-                              .Keys(pattern: "filmworld_movie_details:*")
-                              .ToList();
-            foreach (var key in filmKeys)
-            {
-                var data = await _cache.StringGetAsync(key);
-                if (!string.IsNullOrEmpty(data))
-                {
-                    var movie = JsonSerializer.Deserialize<MovieDetail>(data);
-                    if (movie != null) allMovies.Add(movie);
-                }
-            }
+                // Dictionary to store unique movies by title
+                var uniqueMovies = new Dictionary<string, Movie>();
 
-            if (!allMovies.Any())
-            {
-                _logger.LogWarning("No movie data available.");
-                return NotFound("No movie data available.");
-            }
-
-            // Merge movies from both providers, keeping the lowest price if duplicate
-            var mergedMovies = allMovies
-                .GroupBy(m => m.Title)
-                .Select(group =>
+                // Add Cinemaworld movies first (higher priority)
+                foreach (var movie in cinemaMovies)
                 {
-                    var bestMovie = group.OrderBy(m => m.Price).First();
-                    return new MovieDetail
+                    if (!string.IsNullOrEmpty(movie.Title))
                     {
-                        Title = bestMovie.Title,
-                        Year = bestMovie.Year,
-                        Rated = bestMovie.Rated,
-                        Released = bestMovie.Released,
-                        Runtime = bestMovie.Runtime,
-                        Genre = bestMovie.Genre,
-                        Director = bestMovie.Director,
-                        Writer = bestMovie.Writer,
-                        Actors = bestMovie.Actors,
-                        Plot = bestMovie.Plot,
-                        Language = bestMovie.Language,
-                        Country = bestMovie.Country,
-                        Awards = bestMovie.Awards,
-                        Poster = bestMovie.Poster,
-                        Metascore = bestMovie.Metascore,
-                        Rating = bestMovie.Rating,
-                        Votes = bestMovie.Votes,
-                        ID = bestMovie.ID,
-                        Type = bestMovie.Type,
-                        Price = bestMovie.Price,
-                        Provider = bestMovie.Provider
-                    };
-                })
-                .OrderByDescending(m => int.Parse(m.Year))
-                .ThenBy(m => m.Title)
-                .Take(3)
-                .ToList();
-
-            _logger.LogInformation($"Returning top {mergedMovies.Count} latest movies.");
-            return Ok(mergedMovies);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving movie data.");
-            return StatusCode(500, "Error fetching movie data.");
-        }
-    }
-
-    /// <summary>
-    /// Get all merged movies from both providers.
-    /// </summary>
-    [HttpGet("allMergedMovies")]
-    public async Task<IActionResult> GetMergedMovies()
-    {
-        try
-        {
-            var cinemaData = await _cache.StringGetAsync("cinemaworld_movies");
-            var filmData = await _cache.StringGetAsync("filmworld_movies");
-
-            var cinemaMovies = !string.IsNullOrEmpty(cinemaData) 
-                ? JsonSerializer.Deserialize<List<MovieDetail>>(cinemaData) ?? new List<MovieDetail>() 
-                : new List<MovieDetail>();
-
-            var filmMovies = !string.IsNullOrEmpty(filmData) 
-                ? JsonSerializer.Deserialize<List<MovieDetail>>(filmData) ?? new List<MovieDetail>() 
-                : new List<MovieDetail>();
-
-            var mergedMovies = MergeMovieDetails(cinemaMovies, filmMovies);
-            return Ok(mergedMovies);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error merging movie details.");
-            return StatusCode(500, "Error merging movie details.");
-        }
-    }
-
-    /// <summary>
-    /// Merges movie details from both providers.
-    /// </summary>
-    private List<MergedMovieDetail> MergeMovieDetails(List<MovieDetail> cinemaMovies, List<MovieDetail> filmMovies)
-    {
-        var movieDictionary = new Dictionary<string, MergedMovieDetail>();
-
-        foreach (var movie in cinemaMovies)
-        {
-            movieDictionary[movie.ID] = new MergedMovieDetail
-            {
-                Title = movie.Title,
-                Year = movie.Year,
-                Rated = movie.Rated,
-                Released = movie.Released,
-                Runtime = movie.Runtime,
-                Genre = movie.Genre,
-                Director = movie.Director,
-                Writer = movie.Writer,
-                Actors = movie.Actors,
-                Plot = movie.Plot,
-                Language = movie.Language,
-                Country = movie.Country,
-                Awards = movie.Awards,
-                Poster = movie.Poster,
-                Metascore = movie.Metascore,
-                Rating = decimal.TryParse(movie.Rating, out var rating) ? rating : 0.0m,
-                Votes = int.TryParse(movie.Votes.Replace(",", ""), out var votes) ? votes : 0,
-                ID = movie.ID,
-                Type = movie.Type,
-                FirstPrice = movie.Price,
-                FirstProvider = "Cinemaworld",
-                SecondPrice = -1m,
-                SecondProvider = "Unknown"
-            };
-        }
-
-        foreach (var movie in filmMovies)
-        {
-            if (movieDictionary.TryGetValue(movie.ID, out var existingMovie))
-            {
-                if (movie.Price < existingMovie.FirstPrice)
-                {
-                    existingMovie.SecondPrice = existingMovie.FirstPrice;
-                    existingMovie.SecondProvider = existingMovie.FirstProvider;
-                    existingMovie.FirstPrice = movie.Price;
-                    existingMovie.FirstProvider = "Filmworld";
-                }
-                else
-                {
-                    existingMovie.SecondPrice = movie.Price;
-                    existingMovie.SecondProvider = "Filmworld";
+                        uniqueMovies[movie.Title] = movie;
+                    }
                 }
 
-                var newRating = decimal.TryParse(movie.Rating, out var rating) ? rating : 0.0m;
-                existingMovie.Rating = (existingMovie.Rating + newRating) / 2;
+                // Add Filmworld movies, only if not already present
+                foreach (var movie in filmMovies)
+                {
+                    if (!string.IsNullOrEmpty(movie.Title) && !uniqueMovies.ContainsKey(movie.Title))
+                    {
+                        uniqueMovies[movie.Title] = movie;
+                    }
+                }
 
-                var newVotes = int.TryParse(movie.Votes.Replace(",", ""), out var votes) ? votes : 0;
-                existingMovie.Votes += newVotes;
+                return Ok(uniqueMovies.Values.ToList());
             }
-            else
+            catch (Exception ex)
             {
-                movieDictionary[movie.ID] = new MergedMovieDetail
-                {
-                    Title = movie.Title,
-                    Year = movie.Year,
-                    Rated = movie.Rated,
-                    Released = movie.Released,
-                    Runtime = movie.Runtime,
-                    Genre = movie.Genre,
-                    Director = movie.Director,
-                    Writer = movie.Writer,
-                    Actors = movie.Actors,
-                    Plot = movie.Plot,
-                    Language = movie.Language,
-                    Country = movie.Country,
-                    Awards = movie.Awards,
-                    Poster = movie.Poster,
-                    Metascore = movie.Metascore,
-                    Rating = decimal.TryParse(movie.Rating, out var rating) ? rating : 0.0m,
-                    Votes = int.TryParse(movie.Votes.Replace(",", ""), out var votes) ? votes : 0,
-                    ID = movie.ID,
-                    Type = movie.Type,
-                    FirstPrice = movie.Price,
-                    FirstProvider = "Filmworld",
-                    SecondPrice = -1m,
-                    SecondProvider = "Unknown"
-                };
+                _logger.LogError(ex, "Error fetching all movies from cache");
+                return StatusCode(500, "Internal server error");
             }
         }
 
-        return movieDictionary.Values.ToList();
+        /// <summary>
+        /// Fetches a list of movies from Redis based on the given cache key.
+        /// </summary>
+        private async Task<List<Movie>> GetMoviesFromCache(string cacheKey)
+        {
+            if (_cache == null)
+            {
+                _logger.LogWarning("Redis cache is unavailable.");
+                return new List<Movie>();
+            }
+
+            var cachedData = await _cache.StringGetAsync(cacheKey);
+            if (cachedData.IsNullOrEmpty)
+            {
+                _logger.LogWarning($"No data found in Redis for key: {cacheKey}");
+                return new List<Movie>();
+            }
+
+            try
+            {
+                return JsonSerializer.Deserialize<List<Movie>>(cachedData.ToString()) ?? new List<Movie>();
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, $"Failed to deserialize movie data for key: {cacheKey}");
+                return new List<Movie>();
+            }
+        }
     }
 }

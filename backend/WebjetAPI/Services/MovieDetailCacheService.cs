@@ -108,12 +108,12 @@ public class MovieDetailCacheService : BackgroundService
             {
                 var cinemaData = await _cache.StringGetAsync("cinemaworld_movies");
                 cachedMovies["cinemaworld"] = !string.IsNullOrEmpty(cinemaData)
-                    ? JsonSerializer.Deserialize<List<Movie>>(cinemaData) ?? new List<Movie>()
+                    ? JsonSerializer.Deserialize<List<Movie>>(cinemaData!) ?? new List<Movie>()
                     : new List<Movie>();
 
                 var filmData = await _cache.StringGetAsync("filmworld_movies");
                 cachedMovies["filmworld"] = !string.IsNullOrEmpty(filmData)
-                    ? JsonSerializer.Deserialize<List<Movie>>(filmData) ?? new List<Movie>()
+                    ? JsonSerializer.Deserialize<List<Movie>>(filmData!) ?? new List<Movie>()
                     : new List<Movie>();
             }
         }
@@ -154,7 +154,14 @@ public class MovieDetailCacheService : BackgroundService
             if (response.IsSuccessStatusCode)
             {
                 string json = await response.Content.ReadAsStringAsync();
-                await _cache.StringSetAsync(cacheKey, json);
+                if (_cache != null)
+                {
+                    await _cache.StringSetAsync(cacheKey, json);
+                }
+                else
+                {
+                    _logger.LogWarning("Cache is not initialized.");
+                }
                 _logger.LogInformation($"Cached details for {movieId} from {provider}");
                 return true;
             }
