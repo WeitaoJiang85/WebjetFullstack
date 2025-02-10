@@ -28,8 +28,11 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
-// Add HttpClientFactory for handling external API requests
-builder.Services.AddHttpClient();
+// Add HttpClientFactory for handling external API requests with increased timeout
+builder.Services.AddHttpClient("WebjetAPIClient", client =>
+{
+    client.Timeout = TimeSpan.FromMinutes(5); // Increase timeout to 5 minutes
+});
 
 // Load API Token from environment variable
 var apiToken = Environment.GetEnvironmentVariable("WEBJET_API_TOKEN") 
@@ -75,12 +78,12 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Enable Swagger in development
-if (app.Environment.IsDevelopment())
+// Enable Swagger for both Development and Production
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Webjet API V1");
+});
 
 // Middleware for authorization
 app.UseAuthorization();
