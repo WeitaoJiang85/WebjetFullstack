@@ -41,7 +41,8 @@ public class MovieCacheService : BackgroundService
 
         _cinemaworldBaseUrl = _configuration["WebjetAPI:BaseUrls:cinemaworld"] ?? throw new ArgumentNullException("cinemaworld API URL is missing");
         _filmworldBaseUrl = _configuration["WebjetAPI:BaseUrls:filmworld"] ?? throw new ArgumentNullException("filmworld API URL is missing");
-        _apiToken = _configuration["WebjetAPI:ApiToken"] ?? throw new ArgumentNullException("API Token is missing");
+         _apiToken = Environment.GetEnvironmentVariable("WEBJET_API_TOKEN") 
+                    ?? throw new ArgumentNullException("API Token is missing from environment variables");
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

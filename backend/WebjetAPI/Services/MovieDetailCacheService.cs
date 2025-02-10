@@ -33,7 +33,8 @@ public class MovieDetailCacheService : BackgroundService
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
         _cache = redis?.GetDatabase();
-        _apiToken = _configuration["WebjetAPI:ApiToken"] ?? throw new ArgumentNullException("API Token is missing");
+         _apiToken = Environment.GetEnvironmentVariable("WEBJET_API_TOKEN") 
+                    ?? throw new ArgumentNullException("API Token is missing from environment variables");
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
