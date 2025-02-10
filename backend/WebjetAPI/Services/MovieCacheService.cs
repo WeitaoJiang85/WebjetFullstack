@@ -53,21 +53,21 @@ public class MovieCacheService : BackgroundService
             try
             {
                 var client = _httpClientFactory.CreateClient();
-                var movies = await FetchMoviesFromApi(client);
+                var movies = await FetchMoviesWithRetries(client);
 
                 if (_cache != null)
                 {
                     if (movies.TryGetValue("Cinemaworld", out var cinemaMovies))
                     {
                         var cinemaCacheData = JsonSerializer.Serialize(cinemaMovies);
-                        await _cache.StringSetAsync("cinemaworld_movies", cinemaCacheData, TimeSpan.FromMinutes(10));
+                        await _cache.StringSetAsync("cinemaworld_movies", cinemaCacheData, TimeSpan.FromDays(1));
                         _logger.LogInformation("Updated Cinemaworld movie data in cache");
                     }
 
                     if (movies.TryGetValue("Filmworld", out var filmMovies))
                     {
                         var filmCacheData = JsonSerializer.Serialize(filmMovies);
-                        await _cache.StringSetAsync("filmworld_movies", filmCacheData, TimeSpan.FromMinutes(10));
+                        await _cache.StringSetAsync("filmworld_movies", filmCacheData, TimeSpan.FromDays(1));
                         _logger.LogInformation("Updated Filmworld movie data in cache");
                     }
                 }
@@ -84,11 +84,14 @@ public class MovieCacheService : BackgroundService
                 _logger.LogError(ex, "Error updating movie cache");
             }
 
-            await Task.Delay(TimeSpan.FromMinutes(10), stoppingToken);
+            await Task.Delay(TimeSpan.FromDays(1), stoppingToken);
         }
     }
 
-    private async Task<Dictionary<string, List<Movie>>> FetchMoviesFromApi(HttpClient client)
+    /// <summary>
+    /// Fetches movie lists from providers with up to 3 retries.
+    /// </summary>
+    private async Task<Dictionary<string, List<Movie>>> FetchMoviesWithRetries(HttpClient client)
     {
         var allMovies = new Dictionary<string, List<Movie>>
         {
@@ -102,23 +105,55 @@ public class MovieCacheService : BackgroundService
             { "Filmworld", _filmWorldBaseUrl }
         };
 
-        foreach (var provider in providers)
+        foreach (var provider in providers.Keys)
         {
-            try
-            {
-                var moviesUrl = $"{provider.Value}/movies";
-                _logger.LogInformation($"Fetching movies from {provider}");
-                var request = new HttpRequestMessage(HttpMethod.Get, moviesUrl);
-                request.Headers.Add("x-access-token", _apiToken);
-                var response = await client.SendAsync(request);
-                response.EnsureSuccessStatusCode();
+            bool success = false;
 
-                var movies = JsonSerializer.Deserialize<MovieResponse>(await response.Content.ReadAsStringAsync())?.Movies ?? new List<Movie>();
-                allMovies[provider.Key] = movies;
-            }
-            catch (Exception ex)
+            for (int attempt = 1; attempt <= 3; attempt++)
             {
-                _logger.LogError(ex, $"Failed to fetch movies from {provider}, keeping previous cache.");
+                try
+                {
+                    var moviesUrl = $"{providers[provider]}/movies";
+                    _logger.LogInformation($"Fetching movies from {provider} (Attempt {attempt}/3)");
+                    var request = new HttpRequestMessage(HttpMethod.Get, moviesUrl);
+                    request.Headers.Add("x-access-token", _apiToken);
+                    var response = await client.SendAsync(request);
+                    response.EnsureSuccessStatusCode();
+
+                    var movies = JsonSerializer.Deserialize<MovieResponse>(await response.Content.ReadAsStringAsync())?.Movies ?? new List<Movie>();
+                    allMovies[provider] = movies;
+                    success = true;
+                    break; // Exit retry loop if successful
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"Failed to fetch movies from {provider} (Attempt {attempt}/3)");
+                    if (attempt < 3)
+                    {
+                        await Task.Delay(TimeSpan.FromMinutes(10));
+                    }
+                }
+            }
+
+            // If all attempts failed, preserve the existing Redis cache
+            if (!success && _cache != null)
+            {
+                var providerKey = provider.ToLowerInvariant(); 
+                var cachedData = await _cache.StringGetAsync($"{providerKey}_movies");
+
+                if (!cachedData.IsNullOrEmpty)
+                {
+                    var cachedString = cachedData.ToString();
+                    allMovies[provider] = !string.IsNullOrEmpty(cachedString)
+                        ? JsonSerializer.Deserialize<List<Movie>>(cachedString) ?? new List<Movie>()
+                        : new List<Movie>();
+
+                    _logger.LogWarning($"Using existing cache for {provider} as all retries failed.");
+                }
+                else
+                {
+                    _logger.LogError($"No cache available for {provider} and all retries failed. The movie list will be empty.");
+                }
             }
         }
 

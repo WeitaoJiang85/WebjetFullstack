@@ -39,7 +39,7 @@ public class MovieDetailCacheService : BackgroundService
 
             await RunDetailUpdateAsync();
 
-            await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
+            await Task.Delay(TimeSpan.FromMinutes(15), stoppingToken);
         }
     }
 
@@ -125,54 +125,58 @@ public class MovieDetailCacheService : BackgroundService
         return cachedMovies;
     }
 
-    private async Task<bool> FetchAndCacheMovieDetails(HttpClient client, string provider, string movieId)
+ private async Task<bool> FetchAndCacheMovieDetails(HttpClient client, string provider, string movieId)
+{
+    string cacheKey = $"{provider}_movie_details:{movieId}";
+    string? baseUrl = _configuration[$"WebjetAPI:BaseUrls:{provider.Capitalize()}"];
+    
+    if (string.IsNullOrEmpty(baseUrl))
     {
-        string cacheKey = $"{provider}_movie_details:{movieId}";
+        _logger.LogWarning($"Base URL for {provider} is missing. Skipping movie details fetch.");
+        return false;
+    }
 
+    var movieUrl = $"{baseUrl}/movie/{movieId}";
+    _logger.LogInformation($"Fetching movie details from {movieUrl}");
+
+    int maxRetries = 2;  // Retry up to 2 times
+    int delayMilliseconds = 2000;
+
+    for (int attempt = 1; attempt <= maxRetries; attempt++)
+    {
         try
         {
-            string? baseUrl = _configuration[$"WebjetAPI:BaseUrls:{provider.Capitalize()}"];
-            if (string.IsNullOrEmpty(baseUrl))
-            {
-                _logger.LogWarning($"Base URL for {provider} is missing. Skipping movie details fetch.");
-                return false;
-            }
-
-            var movieUrl = $"{baseUrl}/movie/{movieId}";
-            _logger.LogInformation($"Fetching movie details from {movieUrl}");
-
             var request = new HttpRequestMessage(HttpMethod.Get, movieUrl);
             request.Headers.Add("x-access-token", _apiToken);
-            var response = await client.SendAsync(request);
-            response.EnsureSuccessStatusCode();
 
-            var movieDetails = JsonSerializer.Deserialize<MovieDetail>(await response.Content.ReadAsStringAsync(), new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true,
-                NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString
-            });
-
-            if (movieDetails != null)
-            {
+            HttpResponseMessage response = await client.SendAsync(request);
             
-                movieDetails.Provider = provider.Capitalize();
-
-                await _cache.StringSetAsync(cacheKey, JsonSerializer.Serialize(movieDetails), TimeSpan.FromMinutes(10));
-                _logger.LogInformation($"Cached details for {movieDetails.Title} ({movieId}) from {movieDetails.Provider}");
+            if (response.IsSuccessStatusCode)
+            {
+                string json = await response.Content.ReadAsStringAsync();
+                await _cache.StringSetAsync(cacheKey, json);
+                _logger.LogInformation($"Cached details for {movieId} from {provider}");
                 return true;
             }
             else
             {
-                _logger.LogWarning($"Movie details for {movieId} from {provider} are null. Skipping cache.");
-                return false;
+                _logger.LogWarning($"Failed attempt {attempt}/{maxRetries} for {movieId} from {provider}: {response.StatusCode}");
             }
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
-            _logger.LogError(ex, $"Failed to fetch details for {movieId} from {provider}, keeping previous cache.");
-            return false;
+            _logger.LogError($"HTTP request error for {movieId} from {provider}, attempt {attempt}: {ex.Message}");
+        }
+
+        if (attempt < maxRetries)
+        {
+            await Task.Delay(delayMilliseconds);  // Wait before retrying
         }
     }
+
+    _logger.LogError($"Failed to fetch details for {movieId} from {provider} after {maxRetries} attempts.");
+    return false;
+}
 }
 
 /// <summary>

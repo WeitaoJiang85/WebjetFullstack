@@ -21,29 +21,25 @@ builder.Host.UseSerilog();
 // Add HttpClientFactory for handling external API requests
 builder.Services.AddHttpClient();
 
-// Configure Redis to prefer local instance, fallback to remote if unavailable
+// Configure Redis to use Railway Redis from appsettings.json
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 {
     var configuration = sp.GetRequiredService<IConfiguration>();
-    var localRedis = "localhost:6379,abortConnect=false";
     var remoteRedis = configuration["Redis:ConnectionString"];
+
+    if (string.IsNullOrEmpty(remoteRedis))
+    {
+        throw new Exception("Redis connection string is missing in configuration.");
+    }
 
     try
     {
-        Log.Information("Trying to connect to local Redis: {RedisConfig}", localRedis);
-        return ConnectionMultiplexer.Connect(localRedis);
+        Log.Information("Connecting to Railway Redis: {RedisConfig}", remoteRedis);
+        return ConnectionMultiplexer.Connect(remoteRedis);
     }
-    catch
+    catch (Exception ex)
     {
-        if (!string.IsNullOrEmpty(remoteRedis))
-        {
-            Log.Warning("Local Redis connection failed. Trying remote Redis: {RedisConfig}", remoteRedis);
-            return ConnectionMultiplexer.Connect(remoteRedis);
-        }
-        else
-        {
-            throw new Exception("No available Redis connection. Ensure Redis is running.");
-        }
+        throw new Exception($"Failed to connect to Redis: {ex.Message}");
     }
 });
 

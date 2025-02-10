@@ -26,6 +26,9 @@ public class MoviesController : ControllerBase
         _cache = redis.GetDatabase();
     }
 
+    /// <summary>
+    /// Get the top 3 latest movies, merging data from both providers.
+    /// </summary>
     [HttpGet("top3")]
     public async Task<IActionResult> GetLatestMovies()
     {
@@ -111,5 +114,128 @@ public class MoviesController : ControllerBase
             _logger.LogError(ex, "Error retrieving movie data.");
             return StatusCode(500, "Error fetching movie data.");
         }
+    }
+
+    /// <summary>
+    /// Get all merged movies from both providers.
+    /// </summary>
+    [HttpGet("allMergedMovies")]
+    public async Task<IActionResult> GetMergedMovies()
+    {
+        try
+        {
+            var cinemaData = await _cache.StringGetAsync("cinemaworld_movies");
+            var filmData = await _cache.StringGetAsync("filmworld_movies");
+
+            var cinemaMovies = !string.IsNullOrEmpty(cinemaData) 
+                ? JsonSerializer.Deserialize<List<MovieDetail>>(cinemaData) ?? new List<MovieDetail>() 
+                : new List<MovieDetail>();
+
+            var filmMovies = !string.IsNullOrEmpty(filmData) 
+                ? JsonSerializer.Deserialize<List<MovieDetail>>(filmData) ?? new List<MovieDetail>() 
+                : new List<MovieDetail>();
+
+            var mergedMovies = MergeMovieDetails(cinemaMovies, filmMovies);
+            return Ok(mergedMovies);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error merging movie details.");
+            return StatusCode(500, "Error merging movie details.");
+        }
+    }
+
+    /// <summary>
+    /// Merges movie details from both providers.
+    /// </summary>
+    private List<MergedMovieDetail> MergeMovieDetails(List<MovieDetail> cinemaMovies, List<MovieDetail> filmMovies)
+    {
+        var movieDictionary = new Dictionary<string, MergedMovieDetail>();
+
+        foreach (var movie in cinemaMovies)
+        {
+            movieDictionary[movie.ID] = new MergedMovieDetail
+            {
+                Title = movie.Title,
+                Year = movie.Year,
+                Rated = movie.Rated,
+                Released = movie.Released,
+                Runtime = movie.Runtime,
+                Genre = movie.Genre,
+                Director = movie.Director,
+                Writer = movie.Writer,
+                Actors = movie.Actors,
+                Plot = movie.Plot,
+                Language = movie.Language,
+                Country = movie.Country,
+                Awards = movie.Awards,
+                Poster = movie.Poster,
+                Metascore = movie.Metascore,
+                Rating = decimal.TryParse(movie.Rating, out var rating) ? rating : 0.0m,
+                Votes = int.TryParse(movie.Votes.Replace(",", ""), out var votes) ? votes : 0,
+                ID = movie.ID,
+                Type = movie.Type,
+                FirstPrice = movie.Price,
+                FirstProvider = "Cinemaworld",
+                SecondPrice = -1m,
+                SecondProvider = "Unknown"
+            };
+        }
+
+        foreach (var movie in filmMovies)
+        {
+            if (movieDictionary.TryGetValue(movie.ID, out var existingMovie))
+            {
+                if (movie.Price < existingMovie.FirstPrice)
+                {
+                    existingMovie.SecondPrice = existingMovie.FirstPrice;
+                    existingMovie.SecondProvider = existingMovie.FirstProvider;
+                    existingMovie.FirstPrice = movie.Price;
+                    existingMovie.FirstProvider = "Filmworld";
+                }
+                else
+                {
+                    existingMovie.SecondPrice = movie.Price;
+                    existingMovie.SecondProvider = "Filmworld";
+                }
+
+                var newRating = decimal.TryParse(movie.Rating, out var rating) ? rating : 0.0m;
+                existingMovie.Rating = (existingMovie.Rating + newRating) / 2;
+
+                var newVotes = int.TryParse(movie.Votes.Replace(",", ""), out var votes) ? votes : 0;
+                existingMovie.Votes += newVotes;
+            }
+            else
+            {
+                movieDictionary[movie.ID] = new MergedMovieDetail
+                {
+                    Title = movie.Title,
+                    Year = movie.Year,
+                    Rated = movie.Rated,
+                    Released = movie.Released,
+                    Runtime = movie.Runtime,
+                    Genre = movie.Genre,
+                    Director = movie.Director,
+                    Writer = movie.Writer,
+                    Actors = movie.Actors,
+                    Plot = movie.Plot,
+                    Language = movie.Language,
+                    Country = movie.Country,
+                    Awards = movie.Awards,
+                    Poster = movie.Poster,
+                    Metascore = movie.Metascore,
+                    Rating = decimal.TryParse(movie.Rating, out var rating) ? rating : 0.0m,
+                    Votes = int.TryParse(movie.Votes.Replace(",", ""), out var votes) ? votes : 0,
+                    ID = movie.ID,
+                    Type = movie.Type,
+                    FirstPrice = movie.Price,
+                    FirstProvider = "Filmworld",
+                    SecondPrice = -1m,
+                    SecondProvider = "Unknown"
+                };
+            }
+        }
+
+        return movieDictionary.Values.ToList();
     }
 }
