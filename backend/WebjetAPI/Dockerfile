@@ -12,7 +12,7 @@ COPY ["WebjetAPI.csproj", "./"]
 RUN dotnet restore "WebjetAPI.csproj"
 
 # Copy the entire project and build the application
-COPY . .
+COPY . . 
 RUN dotnet build "WebjetAPI.csproj" -c Release -o /app/build
 
 # Publish the application
@@ -23,6 +23,12 @@ RUN dotnet publish "WebjetAPI.csproj" -c Release -o /app/publish
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+
+# Copy .env file into the container
+COPY .env /app/.env
+
+# Ensure environment variables from .env are available
+RUN export $(grep -v '^#' /app/.env | xargs) 
 
 # Set environment variable for ASP.NET Core
 ENV ASPNETCORE_URLS=http://+:8080

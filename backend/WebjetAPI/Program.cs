@@ -1,24 +1,24 @@
+using DotNetEnv;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using StackExchange.Redis;
 using WebjetAPI.Services;
-using DotNetEnv; // Import DotNetEnv to load .env file
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Load .env file for environment variables
 if (File.Exists("/etc/secrets/.env"))
 {
-    Env.Load("/etc/secrets/.env"); // Load from Render's Secret Files
+    Env.Load("/etc/secrets/.env");
 }
 else
 {
-    Env.Load(); // Load from local .env file
+    Env.Load();
 }
 
 // Configure Serilog for logging
@@ -36,12 +36,10 @@ builder.Services.AddHttpClient("WebjetAPIClient", client =>
 });
 
 // Load API Token from .env file
-var apiToken = Env.GetString("WEBJET_API_TOKEN") 
-               ?? throw new Exception("API Token is missing from .env file");
+var apiToken = Env.GetString("WEBJET_API_TOKEN") ?? throw new Exception("API Token is missing from .env file");
 
 // Load Redis connection string from .env file
-var redisConnection = Env.GetString("REDIS_CONNECTION_STRING") 
-                      ?? throw new Exception("Redis connection string is missing from .env file");
+var redisConnection = Env.GetString("REDIS_CONNECTION_STRING") ?? throw new Exception("Redis connection string is missing from .env file");
 
 try
 {
@@ -51,7 +49,7 @@ try
 catch (Exception ex)
 {
     Log.Error("Failed to connect to Redis: {ErrorMessage}", ex.Message);
-    builder.Services.AddSingleton<IConnectionMultiplexer>(_ => null); // Prevents API crash if Redis fails
+    builder.Services.AddSingleton<IConnectionMultiplexer>(_ => null);
 }
 
 // Register services
@@ -63,25 +61,24 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Enable CORS for Vercel frontend and local development
+// CORS configuration for dynamic frontend URL
+var frontendUrl = Environment.GetEnvironmentVariable("FRONTEND_URL") ?? "http://localhost:5173";
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowVercelAndLocalhost", policy =>
-    {
-        policy.WithOrigins(
-            "https://webjet-fullstack-frontend.vercel.app", // Vercel frontend
-            "http://localhost:5173" // Local development
-        )
-        .WithMethods("GET") // ✅ Only Allow GET Requests
-        .AllowAnyHeader()
-        .AllowCredentials();
-    });
+    options.AddPolicy("AllowFrontend",
+        policy =>
+        {
+            policy.WithOrigins(frontendUrl)
+                  .WithMethods("GET")
+                  .AllowAnyHeader()
+                  .AllowCredentials();
+        });
 });
 
 var app = builder.Build();
 
 // Enable CORS
-app.UseCors("AllowVercelAndLocalhost");
+app.UseCors("AllowFrontend");
 
 // Enable Swagger for API documentation
 app.UseSwagger();
@@ -97,18 +94,17 @@ app.MapControllers();
 // Add health check endpoint
 app.MapGet("/healthz", () => Results.Ok("Healthy"));
 
-// Get PORT from environment variable (default: 5149 for local testing)
-var port = Environment.GetEnvironmentVariable("PORT") ?? "5149";
+// Ensure correct binding for Docker, Kubernetes, or local development
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+var isDocker = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true";
+var isKubernetes = Environment.GetEnvironmentVariable("KUBERNETES_SERVICE_HOST") != null;
 
-// Ensure correct binding for Render and local development
-if (Environment.GetEnvironmentVariable("RENDER") == "true")
+if (isDocker || isKubernetes)
 {
-    // Render deployment: Bind to all network interfaces (necessary for Render)
     app.Urls.Add($"http://0.0.0.0:{port}");
 }
 else
 {
-    // Local development: Bind only to localhost
     app.Urls.Add($"http://localhost:{port}");
 }
 
