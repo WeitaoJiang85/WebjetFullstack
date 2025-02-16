@@ -4,7 +4,7 @@
 
   "[csharp]": {
     "editor.formatOnSave": true,
-    "editor.defaultFormatter": "bilal-arikan.csharp-auto-formatter"
+    "editor.defaultFormatter": "csharpier.csharpier-vscode"
   },
 
   "[javascript]": {
