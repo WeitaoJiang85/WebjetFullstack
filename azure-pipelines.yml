@@ -8,7 +8,7 @@ steps:
 - task: AzureCLI@2
   inputs:
     azureSubscription: 'webjet-connection'
-    scriptType: 'bash'
+    scriptType: 'batch'
     scriptLocation: 'inlineScript'
     inlineScript: |
       az acr login --name webjetregistry
