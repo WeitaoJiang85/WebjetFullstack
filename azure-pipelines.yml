@@ -1,14 +1,64 @@
 trigger:
-- main
+  branches:
+    include:
+      - main  
 
 pool:
-  name: 'Webjet fullstack'  
+  name: Webjet fullstack  
 
 steps:
 - task: AzureCLI@2
+  displayName: 'Login to Azure'
   inputs:
     azureSubscription: 'webjet-connection'
-    scriptType: 'batch'
+    scriptType: 'batch'  
     scriptLocation: 'inlineScript'
     inlineScript: |
-      az acr login --name webjetregistry
+      az login --service-principal -u $(clientId) -p $(clientSecret) --tenant $(tenantId)
+      az account set --subscription $(subscriptionId)
+      az aks get-credentials --resource-group MC_webjetResourceGroup_webjetAKS_australiaeast --name webjet-aks
+      kubectl get pods  # 测试 AKS 连接
+
+
+- task: Docker@2
+  displayName: 'Build and Push Frontend Docker Image'
+  inputs:
+    command: 'buildAndPush'
+    repository: 'webjet-frontend'
+    dockerfile: 'frontend/Dockerfile'
+    containerRegistry: 'webjetregistry.azurecr.io'
+    tags: 'latest'
+
+
+- task: Kubernetes@1
+  displayName: 'Deploy Frontend to AKS'
+  inputs:
+    connectionType: 'Azure Resource Manager'
+    azureSubscription: 'webjet-connection'
+    kubernetesCluster: 'webjet-aks'
+    namespace: 'default'
+    command: 'apply'
+    useConfigurationFile: true
+    configuration: 'k8s/frontend-deployment.yaml'  
+
+
+- task: Docker@2
+  displayName: 'Build and Push Backend Docker Image'
+  inputs:
+    command: 'buildAndPush'
+    repository: 'webjet-backend'
+    dockerfile: 'backend/Dockerfile'
+    containerRegistry: 'webjetregistry.azurecr.io'
+    tags: 'latest'
+
+
+- task: Kubernetes@1
+  displayName: 'Deploy Backend to AKS'
+  inputs:
+    connectionType: 'Azure Resource Manager'
+    azureSubscription: 'webjet-connection'
+    kubernetesCluster: 'webjet-aks'
+    namespace: 'default'
+    command: 'apply'
+    useConfigurationFile: true
+    configuration: 'k8s/backend-deployment.yaml'  
