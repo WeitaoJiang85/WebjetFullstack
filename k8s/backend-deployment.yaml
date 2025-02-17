@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webjet-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: webjet-backend
+  template:
+    metadata:
+      labels:
+        app: webjet-backend
+    spec:
+      containers:
+        - name: webjet-backend
+          image: webjetregistry.azurecr.io/webjet-backend:latest
+          ports:
+            - containerPort: 5000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webjet-backend-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: webjet-backend
+  ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 5000
