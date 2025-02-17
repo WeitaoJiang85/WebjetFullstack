@@ -11,8 +11,10 @@ trigger:
 pool:
   name: Webjet fullstack
 
+variables:
+  - group: Webjet-Deployment-Variables
+
 steps:
-  # 🔹 Login to Azure and authenticate with Service Principal
   - task: AzureCLI@2
     displayName: "Login to Azure"
     inputs:
@@ -23,9 +25,8 @@ steps:
         az login --service-principal -u "$(clientId)" -p "$(clientSecret)" --tenant "$(tenantId)"
         az account set --subscription "$(subscriptionId)"
         az aks get-credentials --resource-group webjetResourceGroup --name webjetAKS
-        kubectl get pods  # Verify AKS connection
+        kubectl get pods
 
-  # 🔹 Build and Push Frontend Docker Image to ACR
   - task: Docker@2
     displayName: "Build and Push Frontend Docker Image"
     inputs:
@@ -35,9 +36,8 @@ steps:
       containerRegistry: "webjet-acr-connection"
       tags: |
         latest
-        $(Build.SourceVersion)  # Adding commit hash as an additional tag for tracking
+        $(Build.SourceVersion)
 
-  # 🔹 Deploy Frontend to AKS and restart the deployment
   - task: Kubernetes@1
     displayName: "Deploy Frontend to AKS"
     inputs:
@@ -53,7 +53,6 @@ steps:
       kubectl rollout restart deployment webjet-frontend
     displayName: "Restart Frontend Deployment"
 
-  # 🔹 Build and Push Backend Docker Image to ACR
   - task: Docker@2
     displayName: "Build and Push Backend Docker Image"
     inputs:
@@ -65,7 +64,6 @@ steps:
         latest
         $(Build.SourceVersion)
 
-  # 🔹 Deploy Backend to AKS and restart the deployment
   - task: Kubernetes@1
     displayName: "Deploy Backend to AKS"
     inputs:
