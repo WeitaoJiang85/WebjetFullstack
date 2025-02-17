@@ -26,7 +26,7 @@ steps:
     command: 'buildAndPush'
     repository: 'webjet-frontend'
     dockerfile: 'frontend/Dockerfile'
-    containerRegistry: 'webjetregistry.azurecr.io'
+    containerRegistry: 'webjet-acr-connection'
     tags: 'latest'
 
 
@@ -48,7 +48,7 @@ steps:
     command: 'buildAndPush'
     repository: 'webjet-backend'
     dockerfile: 'backend/Dockerfile'
-    containerRegistry: 'webjetregistry.azurecr.io'
+    containerRegistry: 'webjet-acr-connection'
     tags: 'latest'
 
 
