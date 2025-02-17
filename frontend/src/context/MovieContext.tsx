@@ -1,6 +1,15 @@
 import React, { createContext, useState, useEffect } from "react";
 import { Movie } from "../types";
 
+// Determine API URL based on environment
+const API_BASE_URL =
+  process.env.REACT_APP_API_URL ||
+  (window.location.hostname === "localhost"
+    ? "http://localhost:8080"
+    : "http://4.254.122.98");
+
+console.log("Using API URL:", API_BASE_URL);
+
 interface MovieContextProps {
   movies: Movie[];
   faves: Movie[];
@@ -21,14 +30,14 @@ export const MovieProvider: React.FC<{ children: React.ReactNode }> = ({
   const [faves, setFaves] = useState<Movie[]>([]);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
 
-  // Fetch movie details from API on mount
   useEffect(() => {
     const fetchMovies = async () => {
       try {
-        console.log("Fetching movies...");
-        const response = await fetch(
-          "https://webjetfullstack-backend.onrender.com/api/mergedmoviedetails"
+        console.log(
+          "Fetching movies from:",
+          `${API_BASE_URL}/api/mergedmoviedetails`
         );
+        const response = await fetch(`${API_BASE_URL}/api/mergedmoviedetails`);
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }

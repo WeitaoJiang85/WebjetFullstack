@@ -61,15 +61,15 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// CORS configuration for dynamic frontend URL
-var frontendUrl = Environment.GetEnvironmentVariable("FRONTEND_URL") ?? "http://localhost:5173";
+// CORS configuration: Allow AKS frontend & local development
+var allowedOrigins = new[] { "http://4.254.122.98", "http://localhost:5173" };
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend",
         policy =>
         {
-            policy.WithOrigins(frontendUrl)
-                  .WithMethods("GET")
+            policy.WithOrigins(allowedOrigins) 
+                  .WithMethods("GET", "POST", "OPTIONS") 
                   .AllowAnyHeader()
                   .AllowCredentials();
         });
@@ -77,8 +77,19 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Enable CORS
+// Enable CORS globally
 app.UseCors("AllowFrontend");
+
+// Handle OPTIONS requests to prevent 405 error
+app.Use(async (context, next) =>
+{
+    if (context.Request.Method == "OPTIONS")
+    {
+        context.Response.StatusCode = 204;
+        return;
+    }
+    await next();
+});
 
 // Enable Swagger for API documentation
 app.UseSwagger();

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("WebjetAPI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+877209b8d04ecacd7a5aca249635840da2763d49")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b42fc90471a9b301814a1ecd1f3d183da7d92b00")]
 [assembly: System.Reflection.AssemblyProductAttribute("WebjetAPI")]
 [assembly: System.Reflection.AssemblyTitleAttribute("WebjetAPI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
