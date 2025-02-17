@@ -31,23 +31,20 @@ steps:
     displayName: "Build and Push Frontend Docker Image"
     inputs:
       command: "buildAndPush"
-      repository: "webjetregistry.azurecr.io/webjet-frontend"
+      repository: "$(containerRegistry)/webjet-frontend"
       dockerfile: "frontend/Dockerfile"
       containerRegistry: "webjet-acr-connection"
       tags: |
         latest
         $(Build.SourceVersion)
 
-  - task: Kubernetes@1
+  - task: KubernetesManifest@1
     displayName: "Deploy Frontend to AKS"
     inputs:
-      connectionType: "Azure Resource Manager"
-      azureSubscription: "webjet-connection"
-      kubernetesCluster: "webjet-aks"
+      action: deploy
+      kubernetesServiceConnection: "webjet-connection"
       namespace: "default"
-      command: "apply"
-      useConfigurationFile: true
-      configuration: "k8s/frontend-deployment.yaml"
+      manifests: "k8s/frontend-deployment.yaml"
 
   - script: |
       kubectl rollout restart deployment webjet-frontend
@@ -57,23 +54,20 @@ steps:
     displayName: "Build and Push Backend Docker Image"
     inputs:
       command: "buildAndPush"
-      repository: "webjetregistry.azurecr.io/webjet-backend"
+      repository: "$(containerRegistry)/webjet-backend"
       dockerfile: "backend/Dockerfile"
       containerRegistry: "webjet-acr-connection"
       tags: |
         latest
         $(Build.SourceVersion)
 
-  - task: Kubernetes@1
+  - task: KubernetesManifest@1
     displayName: "Deploy Backend to AKS"
     inputs:
-      connectionType: "Azure Resource Manager"
-      azureSubscription: "webjet-connection"
-      kubernetesCluster: "webjet-aks"
+      action: deploy
+      kubernetesServiceConnection: "webjet-connection"
       namespace: "default"
-      command: "apply"
-      useConfigurationFile: true
-      configuration: "k8s/backend-deployment.yaml"
+      manifests: "k8s/backend-deployment.yaml"
 
   - script: |
       kubectl rollout restart deployment webjet-backend
