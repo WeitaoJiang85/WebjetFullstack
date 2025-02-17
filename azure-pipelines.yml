@@ -38,13 +38,15 @@ steps:
         latest
         $(Build.SourceVersion)
 
-  - task: KubernetesManifest@1
+  - task: Kubernetes@1
     displayName: "Deploy Frontend to AKS"
     inputs:
-      action: deploy
-      kubernetesServiceConnection: "webjet-connection"
+      connectionType: "Kubernetes Service Connection"
+      kubernetesServiceEndpoint: "webjet-kubernetes-connection"
       namespace: "default"
-      manifests: "k8s/frontend-deployment.yaml"
+      command: "apply"
+      useConfigurationFile: true
+      configuration: "k8s/frontend-deployment.yaml"
 
   - script: |
       kubectl rollout restart deployment webjet-frontend
@@ -61,13 +63,15 @@ steps:
         latest
         $(Build.SourceVersion)
 
-  - task: KubernetesManifest@1
+  - task: Kubernetes@1
     displayName: "Deploy Backend to AKS"
     inputs:
-      action: deploy
-      kubernetesServiceConnection: "webjet-connection"
+      connectionType: "Kubernetes Service Connection"
+      kubernetesServiceEndpoint: "webjet-kubernetes-connection"
       namespace: "default"
-      manifests: "k8s/backend-deployment.yaml"
+      command: "apply"
+      useConfigurationFile: true
+      configuration: "k8s/backend-deployment.yaml"
 
   - script: |
       kubectl rollout restart deployment webjet-backend
